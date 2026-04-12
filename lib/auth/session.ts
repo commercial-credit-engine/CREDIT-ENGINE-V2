@@ -102,6 +102,20 @@ export async function getSession() {
   return readSessionToken(token);
 }
 
+export async function writeSessionCookie(user: SessionUser) {
+  const cookieStore = await cookies();
+
+  cookieStore.set({
+    name: SESSION_COOKIE_NAME,
+    value: createSessionToken(user),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  });
+}
+
 export function setSessionCookie(response: NextResponse, user: SessionUser) {
   response.cookies.set({
     name: SESSION_COOKIE_NAME,

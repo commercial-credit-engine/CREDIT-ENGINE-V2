@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import { getPool } from "@/lib/db";
 import type { SessionUser } from "@/lib/auth/session";
+import { getSessionActor } from "@/lib/identity";
 
 export type DealRecord = {
   id: string;
@@ -21,32 +21,6 @@ export type DealNoteRecord = {
   createdAt: string;
   updatedAt: string;
 };
-
-function deriveStableUuid(value: string) {
-  const hash = createHash("sha256").update(value).digest("hex");
-
-  return [
-    hash.slice(0, 8),
-    hash.slice(8, 12),
-    hash.slice(12, 16),
-    hash.slice(16, 20),
-    hash.slice(20, 32),
-  ].join("-");
-}
-
-function deriveOrganizationId(email: string) {
-  return deriveStableUuid(`organization:${email.trim().toLowerCase()}`);
-}
-
-function deriveOrganizationName(email: string) {
-  const localPart = email.split("@")[0] ?? "Broker";
-  const normalized = localPart
-    .replace(/[._-]+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-
-  return normalized ? `${normalized} Advisory` : "Broker Advisory";
-}
 
 function mapDeal(row: {
   id: string;
@@ -86,53 +60,6 @@ function mapNote(row: {
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
-}
-
-async function ensureActorContext(session: SessionUser) {
-  const pool = getPool();
-  const client = await pool.connect();
-  const organizationId = deriveOrganizationId(session.email);
-  const organizationName = deriveOrganizationName(session.email);
-
-  try {
-    await client.query("begin");
-    await client.query(
-      `
-        insert into public.users (id, email)
-        values ($1, $2)
-        on conflict (id) do update
-        set email = excluded.email,
-            updated_at = timezone('utc', now())
-      `,
-      [session.userId, session.email],
-    );
-    await client.query(
-      `
-        insert into public.organizations (id, name)
-        values ($1, $2)
-        on conflict (id) do update
-        set name = excluded.name,
-            updated_at = timezone('utc', now())
-      `,
-      [organizationId, organizationName],
-    );
-    await client.query(
-      `
-        insert into public.memberships (user_id, organization_id, role)
-        values ($1, $2, 'member')
-        on conflict (user_id, organization_id) do nothing
-      `,
-      [session.userId, organizationId],
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  return organizationId;
 }
 
 export async function listDealsForUser(session: SessionUser) {
@@ -192,7 +119,7 @@ export async function createDealForUser(
     scenario: string;
   },
 ) {
-  const organizationId = await ensureActorContext(session);
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
@@ -215,8 +142,8 @@ export async function createDealForUser(
         updated_at
     `,
     [
-      organizationId,
-      session.userId,
+      actor.organizationId,
+      actor.userId,
       input.name.trim(),
       input.borrowerName.trim() || null,
       input.scenario.trim() || null,
@@ -224,6 +151,49 @@ export async function createDealForUser(
   );
 
   return mapDeal(result.rows[0]);
+}
+
+export async function updateDealOverviewForUser(
+  session: SessionUser,
+  dealId: string,
+  input: {
+    name: string;
+    borrowerName: string;
+    scenario: string;
+  },
+) {
+  const pool = getPool();
+  const result = await pool.query(
+    `
+      update public.deals
+      set name = $3,
+          borrower_name = $4,
+          scenario = $5,
+          updated_at = timezone('utc', now())
+      where id = $1
+        and owner_user_id = $2
+      returning
+        id,
+        organization_id,
+        owner_user_id,
+        name,
+        borrower_name,
+        scenario,
+        created_at,
+        updated_at
+    `,
+    [
+      dealId,
+      session.userId,
+      input.name.trim(),
+      input.borrowerName.trim() || null,
+      input.scenario.trim() || null,
+    ],
+  );
+
+  const row = result.rows[0];
+
+  return row ? mapDeal(row) : null;
 }
 
 export async function listDealNotesForDeal(
@@ -258,7 +228,6 @@ export async function createDealNoteForDeal(
   dealId: string,
   noteBody: string,
 ) {
-  await ensureActorContext(session);
   const pool = getPool();
   const dealResult = await pool.query(
     `
@@ -295,4 +264,26 @@ export async function createDealNoteForDeal(
   );
 
   return mapNote(result.rows[0]);
+}
+
+export async function deleteDealNoteForDeal(
+  session: SessionUser,
+  dealId: string,
+  noteId: string,
+) {
+  const pool = getPool();
+  const result = await pool.query(
+    `
+      delete from public.deal_notes notes
+      using public.deals deals
+      where notes.id = $1
+        and notes.deal_id = $2
+        and deals.id = notes.deal_id
+        and deals.owner_user_id = $3
+      returning notes.id
+    `,
+    [noteId, dealId, session.userId],
+  );
+
+  return Boolean(result.rows[0]);
 }

@@ -1,7 +1,26 @@
 import { requireSession } from "@/lib/auth/require-session";
+import { getSessionActor } from "@/lib/identity";
+import { saveBrokerProfileAction } from "@/app/settings/actions";
 
-export default async function SettingsPage() {
+type SettingsPageProps = {
+  searchParams: Promise<{
+    error?: string;
+    saved?: string;
+  }>;
+};
+
+const messages = {
+  invalid_profile: "Enter a valid company name and email before saving.",
+  profile: "Broker profile saved.",
+};
+
+export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const session = await requireSession();
+  const actor = await getSessionActor(session);
+  const { error, saved } = await searchParams;
+  const errorMessage =
+    error === "invalid_profile" ? messages.invalid_profile : null;
+  const successMessage = saved === "profile" ? messages.profile : null;
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -15,18 +34,31 @@ export default async function SettingsPage() {
           </h1>
           <p className="text-sm leading-7 text-slate-600">
             Store the broker details that will later feed submission and deal
-            presentation workflows. The current session is {session.email}.
+            presentation workflows. The current session is {actor.email}.
           </p>
         </div>
 
-        <form className="mt-8 grid gap-5">
+        {errorMessage ? (
+          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {successMessage ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <form action={saveBrokerProfileAction} className="mt-8 grid gap-5">
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-700">
               Broker name
             </span>
             <input
+              name="brokerName"
               type="text"
-              defaultValue="Alex Mercer"
+              defaultValue={actor.brokerName ?? ""}
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
             />
           </label>
@@ -36,8 +68,9 @@ export default async function SettingsPage() {
               Company name
             </span>
             <input
+              name="companyName"
               type="text"
-              defaultValue="Mercer Commercial Finance"
+              defaultValue={actor.companyName}
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
             />
           </label>
@@ -45,8 +78,9 @@ export default async function SettingsPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-700">Email</span>
             <input
+              name="email"
               type="email"
-              defaultValue="alex@mercerfinance.com"
+              defaultValue={actor.email}
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
             />
           </label>

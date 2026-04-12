@@ -1,4 +1,5 @@
-import { deriveUserIdFromEmail, setSessionCookie } from "@/lib/auth/session";
+import { ensureIdentityForEmail } from "@/lib/identity";
+import { setSessionCookie } from "@/lib/auth/session";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -14,13 +15,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const actor = await ensureIdentityForEmail(email);
   const response = NextResponse.redirect(new URL("/dashboard", request.url), {
     status: 303,
   });
 
   setSessionCookie(response, {
-    userId: deriveUserIdFromEmail(email),
-    email,
+    userId: actor.userId,
+    email: actor.email,
   });
 
   return response;

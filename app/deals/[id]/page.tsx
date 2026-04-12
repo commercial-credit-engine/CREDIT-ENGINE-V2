@@ -1,7 +1,11 @@
 import { WorkspaceTabs } from "@/components/deal/workspace-tabs";
 import { requireSession } from "@/lib/auth/require-session";
 import { getDealByIdForUser, listDealNotesForDeal } from "@/lib/deals";
-import { createDealNoteAction } from "@/app/deals/[id]/actions";
+import {
+  createDealNoteAction,
+  deleteDealNoteAction,
+  updateDealOverviewAction,
+} from "@/app/deals/[id]/actions";
 import { notFound } from "next/navigation";
 
 type DealWorkspacePageProps = {
@@ -10,6 +14,7 @@ type DealWorkspacePageProps = {
   }>;
   searchParams: Promise<{
     error?: string;
+    saved?: string;
   }>;
 };
 
@@ -19,7 +24,7 @@ export default async function DealWorkspacePage({
 }: DealWorkspacePageProps) {
   const session = await requireSession();
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, saved } = await searchParams;
   const deal = await getDealByIdForUser(session, id);
 
   if (!deal) {
@@ -28,10 +33,20 @@ export default async function DealWorkspacePage({
 
   const notes = await listDealNotesForDeal(session, deal.id);
   const saveNoteAction = createDealNoteAction.bind(null, deal.id);
+  const updateOverviewAction = updateDealOverviewAction.bind(null, deal.id);
+  const removeNoteAction = deleteDealNoteAction.bind(null, deal.id);
   const errorMessage =
     error === "missing_note"
       ? "Enter a note before saving it to the deal."
-      : null;
+      : error === "missing_name"
+        ? "A deal name is required before the overview can be saved."
+        : null;
+  const successMessage =
+    saved === "overview"
+      ? "Deal overview saved."
+      : saved === "note_deleted"
+        ? "Note deleted."
+        : null;
 
   return (
     <div className="space-y-8">
@@ -68,6 +83,73 @@ export default async function DealWorkspacePage({
         }}
       />
 
+      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
+        <div className="space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Update overview
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
+            Edit core deal fields
+          </h2>
+          <p className="text-sm leading-7 text-slate-600">
+            Keep the main overview details current without broadening the deal
+            model into other workspace sections yet.
+          </p>
+        </div>
+
+        {errorMessage ? (
+          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {successMessage === "Deal overview saved." ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        ) : null}
+
+        <form action={updateOverviewAction} className="mt-8 grid gap-5">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Deal name</span>
+            <input
+              name="name"
+              type="text"
+              required
+              defaultValue={deal.name}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Borrower</span>
+            <input
+              name="borrowerName"
+              type="text"
+              defaultValue={deal.borrowerName ?? ""}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium text-slate-700">Scenario</span>
+            <textarea
+              name="scenario"
+              rows={6}
+              defaultValue={deal.scenario ?? ""}
+              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
+            />
+          </label>
+
+          <button
+            type="submit"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 sm:w-auto"
+          >
+            Save Overview
+          </button>
+        </form>
+      </section>
+
       <section
         id="notes"
         className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
@@ -87,6 +169,12 @@ export default async function DealWorkspacePage({
         {errorMessage ? (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {errorMessage}
+          </div>
+        ) : null}
+
+        {successMessage === "Note deleted." ? (
+          <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
           </div>
         ) : null}
 
@@ -132,6 +220,15 @@ export default async function DealWorkspacePage({
                     timeStyle: "short",
                   })}
                 </p>
+                <form action={removeNoteAction} className="mt-4">
+                  <input type="hidden" name="noteId" value={note.id} />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+                  >
+                    Delete note
+                  </button>
+                </form>
               </article>
             ))
           )}

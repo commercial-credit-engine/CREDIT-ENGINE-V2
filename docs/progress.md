@@ -69,3 +69,20 @@
 - Deal and deal note persistence now runs against `DATABASE_URL` using the existing schema.
 - Auth and protected route behavior remain simple and unchanged from Batch 2.
 - The workspace overview tab shows persisted deal content, while other tabs remain UI shells for later batches.
+
+## Batch 4
+
+### What Batch 4 built
+- Tightened identity handling by resolving a stable database-backed session actor during sign-in and reuse.
+- Wired broker profile settings to persisted user and organization records.
+- Added bounded update support for deal overview fields only.
+- Kept note create/read support and added simple owner-safe note delete.
+
+### Files created
+- `app/settings/actions.ts`
+- `lib/identity.ts`
+
+### Current status
+- Session cookies now align more explicitly with a persisted user record and membership-backed organization context.
+- Settings persist broker name, company name, and email, and refresh the session cookie after email updates.
+- Deal overview updates are limited to the main core fields, while other workspace sections remain intentionally unchanged.
