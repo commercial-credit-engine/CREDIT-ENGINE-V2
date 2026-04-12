@@ -1,4 +1,21 @@
-export default function NewDealPage() {
+import { requireSession } from "@/lib/auth/require-session";
+import { createDealAction } from "@/app/deals/new/actions";
+
+type NewDealPageProps = {
+  searchParams: Promise<{
+    error?: string;
+  }>;
+};
+
+const errorMessages: Record<string, string> = {
+  missing_name: "A deal name is required before the intake can be saved.",
+};
+
+export default async function NewDealPage({ searchParams }: NewDealPageProps) {
+  await requireSession();
+  const { error } = await searchParams;
+  const errorMessage = error ? errorMessages[error] ?? "Unable to save the deal." : null;
+
   return (
     <div className="mx-auto w-full max-w-4xl">
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -10,17 +27,25 @@ export default function NewDealPage() {
             Deal intake
           </h1>
           <p className="max-w-2xl text-sm leading-7 text-slate-600">
-            Start a new commercial lending scenario with the essential context.
-            Submission logic and persistence will be added in later batches.
+            Start a new commercial lending scenario and save it directly into
+            the current deal workspace foundation.
           </p>
         </div>
 
-        <form className="mt-8 grid gap-5">
+        {errorMessage ? (
+          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        <form action={createDealAction} className="mt-8 grid gap-5">
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-700">Deal name</span>
             <input
+              name="name"
               type="text"
               placeholder="Acacia Business Park Refinance"
+              required
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
             />
           </label>
@@ -28,6 +53,7 @@ export default function NewDealPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-700">Borrower</span>
             <input
+              name="borrowerName"
               type="text"
               placeholder="Acacia Holdings Pty Ltd"
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
@@ -37,6 +63,7 @@ export default function NewDealPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-slate-700">Scenario</span>
             <textarea
+              name="scenario"
               rows={7}
               placeholder="Describe the borrower, the transaction, the requested facilities, and the current debt or security position."
               className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500"

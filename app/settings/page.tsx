@@ -1,4 +1,8 @@
-export default function SettingsPage() {
+import { requireSession } from "@/lib/auth/require-session";
+
+export default async function SettingsPage() {
+  const session = await requireSession();
+
   return (
     <div className="mx-auto w-full max-w-3xl">
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -11,7 +15,7 @@ export default function SettingsPage() {
           </h1>
           <p className="text-sm leading-7 text-slate-600">
             Store the broker details that will later feed submission and deal
-            presentation workflows.
+            presentation workflows. The current session is {session.email}.
           </p>
         </div>
 

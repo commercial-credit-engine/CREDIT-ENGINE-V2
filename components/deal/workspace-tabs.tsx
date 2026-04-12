@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 
+type DealOverview = {
+  dealName: string;
+  borrowerName: string | null;
+  scenario: string | null;
+  ownerEmail: string;
+  organizationId: string;
+  updatedAt: string;
+};
+
 type WorkspaceSection = {
   id: string;
   label: string;
@@ -121,7 +130,11 @@ const sections: WorkspaceSection[] = [
   },
 ];
 
-export function WorkspaceTabs() {
+type WorkspaceTabsProps = {
+  overview: DealOverview;
+};
+
+export function WorkspaceTabs({ overview }: WorkspaceTabsProps) {
   const [activeTab, setActiveTab] = useState(sections[0].id);
   const activeSection =
     sections.find((section) => section.id === activeTab) ?? sections[0];
@@ -167,26 +180,83 @@ export function WorkspaceTabs() {
               {activeSection.description}
             </p>
           </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {activeSection.bullets.map((bullet) => (
-              <div
-                key={bullet}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
-              >
-                {bullet}
+          {activeSection.id === "overview" ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Deal name
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {overview.dealName}
+                </p>
               </div>
-            ))}
-          </div>
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
-            <p className="text-sm font-medium text-slate-700">
-              Placeholder panel
-            </p>
-            <p className="mt-2 text-sm leading-7 text-slate-600">
-              This panel is ready for Batch 2 and Batch 3 data wiring. For now,
-              it gives each section visible structure so the deal workspace is
-              usable as a real shell.
-            </p>
-          </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Borrower
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {overview.borrowerName || "Not provided yet"}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Owner session
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {overview.ownerEmail}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Organization linkage
+                </p>
+                <p className="mt-2 break-all text-sm font-medium text-slate-900">
+                  {overview.organizationId}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Scenario summary
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                  {overview.scenario || "No scenario summary has been saved yet."}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Last updated
+                </p>
+                <p className="mt-2 text-sm text-slate-700">
+                  {new Date(overview.updatedAt).toLocaleString("en-AU", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+                {activeSection.bullets.map((bullet) => (
+                  <div
+                    key={bullet}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700"
+                  >
+                    {bullet}
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5">
+                <p className="text-sm font-medium text-slate-700">
+                  Placeholder panel
+                </p>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  This panel is ready for later batch expansion. The overview
+                  tab already reflects live persisted deal data.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
