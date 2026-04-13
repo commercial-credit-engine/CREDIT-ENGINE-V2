@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { requireSession } from "@/lib/auth/require-session";
 import { listDealsForUser } from "@/lib/deals";
+import { getSessionActor } from "@/lib/identity";
 
 export default async function DashboardPage() {
   const session = await requireSession();
+  const actor = await getSessionActor(session);
   const deals = await listDealsForUser(session);
 
   return (
@@ -18,8 +20,8 @@ export default async function DashboardPage() {
               Active deals
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
-              Signed in as {session.email}. This list now reads from persisted
-              deal records linked to your current session.
+              Signed in as {actor.email}. This list is scoped to the current
+              organization membership and resolved identity.
             </p>
           </div>
         </div>

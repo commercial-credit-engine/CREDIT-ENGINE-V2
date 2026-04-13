@@ -6,7 +6,7 @@ export async function POST(request: Request) {
     status: 303,
   });
 
-  clearSessionCookie(response);
+  clearSessionCookie(response, request);
 
   return response;
 }

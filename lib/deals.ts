@@ -63,47 +63,55 @@ function mapNote(row: {
 }
 
 export async function listDealsForUser(session: SessionUser) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
       select
-        id,
-        organization_id,
-        owner_user_id,
-        name,
-        borrower_name,
-        scenario,
-        created_at,
-        updated_at
-      from public.deals
-      where owner_user_id = $1
-      order by updated_at desc, created_at desc
+        deals.id,
+        deals.organization_id,
+        deals.owner_user_id,
+        deals.name,
+        deals.borrower_name,
+        deals.scenario,
+        deals.created_at,
+        deals.updated_at
+      from public.deals deals
+      inner join public.memberships memberships
+        on memberships.organization_id = deals.organization_id
+      where deals.organization_id = $1
+        and memberships.user_id = $2
+      order by deals.updated_at desc, deals.created_at desc
     `,
-    [session.userId],
+    [actor.organizationId, actor.userId],
   );
 
   return result.rows.map(mapDeal);
 }
 
 export async function getDealByIdForUser(session: SessionUser, dealId: string) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
       select
-        id,
-        organization_id,
-        owner_user_id,
-        name,
-        borrower_name,
-        scenario,
-        created_at,
-        updated_at
-      from public.deals
-      where id = $1
-        and owner_user_id = $2
+        deals.id,
+        deals.organization_id,
+        deals.owner_user_id,
+        deals.name,
+        deals.borrower_name,
+        deals.scenario,
+        deals.created_at,
+        deals.updated_at
+      from public.deals deals
+      inner join public.memberships memberships
+        on memberships.organization_id = deals.organization_id
+      where deals.id = $1
+        and deals.organization_id = $2
+        and memberships.user_id = $3
       limit 1
     `,
-    [dealId, session.userId],
+    [dealId, actor.organizationId, actor.userId],
   );
 
   const row = result.rows[0];
@@ -162,16 +170,23 @@ export async function updateDealOverviewForUser(
     scenario: string;
   },
 ) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
-      update public.deals
+      update public.deals deals
       set name = $3,
           borrower_name = $4,
           scenario = $5,
           updated_at = timezone('utc', now())
       where id = $1
-        and owner_user_id = $2
+        and organization_id = $2
+        and exists (
+          select 1
+          from public.memberships
+          where public.memberships.organization_id = deals.organization_id
+            and public.memberships.user_id = $6
+        )
       returning
         id,
         organization_id,
@@ -184,10 +199,11 @@ export async function updateDealOverviewForUser(
     `,
     [
       dealId,
-      session.userId,
+      actor.organizationId,
       input.name.trim(),
       input.borrowerName.trim() || null,
       input.scenario.trim() || null,
+      actor.userId,
     ],
   );
 
@@ -200,6 +216,7 @@ export async function listDealNotesForDeal(
   session: SessionUser,
   dealId: string,
 ) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
@@ -213,11 +230,14 @@ export async function listDealNotesForDeal(
       from public.deal_notes notes
       inner join public.deals deals
         on deals.id = notes.deal_id
+      inner join public.memberships memberships
+        on memberships.organization_id = deals.organization_id
       where notes.deal_id = $1
-        and deals.owner_user_id = $2
+        and deals.organization_id = $2
+        and memberships.user_id = $3
       order by notes.created_at desc
     `,
-    [dealId, session.userId],
+    [dealId, actor.organizationId, actor.userId],
   );
 
   return result.rows.map(mapNote);
@@ -228,16 +248,20 @@ export async function createDealNoteForDeal(
   dealId: string,
   noteBody: string,
 ) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const dealResult = await pool.query(
     `
-      select id
-      from public.deals
-      where id = $1
-        and owner_user_id = $2
+      select deals.id
+      from public.deals deals
+      inner join public.memberships memberships
+        on memberships.organization_id = deals.organization_id
+      where deals.id = $1
+        and deals.organization_id = $2
+        and memberships.user_id = $3
       limit 1
     `,
-    [dealId, session.userId],
+    [dealId, actor.organizationId, actor.userId],
   );
 
   if (!dealResult.rows[0]) {
@@ -260,7 +284,7 @@ export async function createDealNoteForDeal(
         created_at,
         updated_at
     `,
-    [dealId, session.userId, noteBody.trim()],
+    [dealId, actor.userId, noteBody.trim()],
   );
 
   return mapNote(result.rows[0]);
@@ -271,18 +295,21 @@ export async function deleteDealNoteForDeal(
   dealId: string,
   noteId: string,
 ) {
+  const actor = await getSessionActor(session);
   const pool = getPool();
   const result = await pool.query(
     `
       delete from public.deal_notes notes
-      using public.deals deals
+      using public.deals deals, public.memberships memberships
       where notes.id = $1
         and notes.deal_id = $2
         and deals.id = notes.deal_id
-        and deals.owner_user_id = $3
+        and deals.organization_id = $3
+        and memberships.organization_id = deals.organization_id
+        and memberships.user_id = $4
       returning notes.id
     `,
-    [noteId, dealId, session.userId],
+    [noteId, dealId, actor.organizationId, actor.userId],
   );
 
   return Boolean(result.rows[0]);

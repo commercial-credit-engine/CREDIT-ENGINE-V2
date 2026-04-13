@@ -19,3 +19,17 @@
 - These migrations are additive and ordered.
 - RLS currently assumes authenticated database access will map to `auth.uid()` in later integration work.
 - Local app auth is currently cookie-session based and separate from database authentication.
+
+## Batch 5
+
+### Added migrations
+- `20260412214000_create_deal_parties.sql`
+
+### Scope
+- Adds a minimal `deal_parties` table for one bounded persisted workspace section.
+- Stores simple borrower and guarantor party records against a deal.
+- Keeps access derived from the parent deal for the new table's RLS foundation.
+
+### Notes
+- The app currently uses organization-scoped access checks when loading and mutating parties.
+- The table is intentionally minimal and does not model complex relationships yet.

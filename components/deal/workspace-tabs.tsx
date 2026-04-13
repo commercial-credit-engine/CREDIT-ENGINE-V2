@@ -11,6 +11,13 @@ type DealOverview = {
   updatedAt: string;
 };
 
+type DealParty = {
+  id: string;
+  partyName: string;
+  partyType: "borrower" | "guarantor";
+  createdAt: string;
+};
+
 type WorkspaceSection = {
   id: string;
   label: string;
@@ -132,10 +139,25 @@ const sections: WorkspaceSection[] = [
 
 type WorkspaceTabsProps = {
   overview: DealOverview;
+  parties: DealParty[];
+  createPartyAction: (formData: FormData) => void | Promise<void>;
+  initialTab?: string;
+  partyMessage?: {
+    tone: "error" | "success";
+    text: string;
+  } | null;
 };
 
-export function WorkspaceTabs({ overview }: WorkspaceTabsProps) {
-  const [activeTab, setActiveTab] = useState(sections[0].id);
+export function WorkspaceTabs({
+  overview,
+  parties,
+  createPartyAction,
+  initialTab,
+  partyMessage,
+}: WorkspaceTabsProps) {
+  const defaultTab =
+    sections.find((section) => section.id === initialTab)?.id ?? sections[0].id;
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const activeSection =
     sections.find((section) => section.id === activeTab) ?? sections[0];
 
@@ -233,6 +255,88 @@ export function WorkspaceTabs({ overview }: WorkspaceTabsProps) {
                   })}
                 </p>
               </div>
+            </div>
+          ) : activeSection.id === "parties" ? (
+            <div className="space-y-6">
+              {partyMessage ? (
+                <div
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    partyMessage.tone === "error"
+                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {partyMessage.text}
+                </div>
+              ) : null}
+
+              <form action={createPartyAction} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Party name
+                  </span>
+                  <input
+                    name="partyName"
+                    type="text"
+                    placeholder="Acacia Holdings Pty Ltd"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-slate-500"
+                  />
+                </label>
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-slate-700">
+                    Party type
+                  </span>
+                  <select
+                    name="partyType"
+                    defaultValue="borrower"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-slate-500"
+                  >
+                    <option value="borrower">Borrower</option>
+                    <option value="guarantor">Guarantor</option>
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Add Party
+                </button>
+              </form>
+
+              {parties.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
+                  No parties have been saved for this deal yet.
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {parties.map((party) => (
+                    <article
+                      key={party.id}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-base font-semibold text-slate-900">
+                            {party.partyName}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {party.partyType === "borrower"
+                              ? "Borrower"
+                              : "Guarantor"}
+                          </p>
+                        </div>
+                        <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                          Added{" "}
+                          {new Date(party.createdAt).toLocaleString("en-AU", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <>

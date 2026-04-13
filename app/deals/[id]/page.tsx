@@ -1,8 +1,11 @@
 import { WorkspaceTabs } from "@/components/deal/workspace-tabs";
 import { requireSession } from "@/lib/auth/require-session";
 import { getDealByIdForUser, listDealNotesForDeal } from "@/lib/deals";
+import { getSessionActor } from "@/lib/identity";
+import { listDealPartiesForDeal } from "@/lib/parties";
 import {
   createDealNoteAction,
+  createDealPartyAction,
   deleteDealNoteAction,
   updateDealOverviewAction,
 } from "@/app/deals/[id]/actions";
@@ -15,6 +18,7 @@ type DealWorkspacePageProps = {
   searchParams: Promise<{
     error?: string;
     saved?: string;
+    tab?: string;
   }>;
 };
 
@@ -23,8 +27,9 @@ export default async function DealWorkspacePage({
   searchParams,
 }: DealWorkspacePageProps) {
   const session = await requireSession();
+  const actor = await getSessionActor(session);
   const { id } = await params;
-  const { error, saved } = await searchParams;
+  const { error, saved, tab } = await searchParams;
   const deal = await getDealByIdForUser(session, id);
 
   if (!deal) {
@@ -32,14 +37,30 @@ export default async function DealWorkspacePage({
   }
 
   const notes = await listDealNotesForDeal(session, deal.id);
+  const parties = await listDealPartiesForDeal(session, deal.id);
   const saveNoteAction = createDealNoteAction.bind(null, deal.id);
+  const savePartyAction = createDealPartyAction.bind(null, deal.id);
   const updateOverviewAction = updateDealOverviewAction.bind(null, deal.id);
   const removeNoteAction = deleteDealNoteAction.bind(null, deal.id);
-  const errorMessage =
-    error === "missing_note"
-      ? "Enter a note before saving it to the deal."
-      : error === "missing_name"
-        ? "A deal name is required before the overview can be saved."
+  const overviewError =
+    error === "invalid_overview"
+      ? "Enter a deal name under 160 characters and keep borrower and scenario within the allowed limits."
+      : null;
+  const noteError =
+    error === "invalid_note"
+      ? "Enter a note between 1 and 2000 characters."
+      : null;
+  const partyMessage =
+    error === "invalid_party"
+      ? {
+          tone: "error" as const,
+          text: "Enter a party name under 160 characters and choose a valid party type.",
+        }
+      : saved === "party"
+        ? {
+            tone: "success" as const,
+            text: "Party saved.",
+          }
         : null;
   const successMessage =
     saved === "overview"
@@ -62,7 +83,7 @@ export default async function DealWorkspacePage({
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
                 {deal.borrowerName || "Borrower not captured yet"}. Session
-                owner: {session.email}
+                actor: {actor.email}
               </p>
             </div>
           </div>
@@ -77,10 +98,14 @@ export default async function DealWorkspacePage({
           dealName: deal.name,
           borrowerName: deal.borrowerName,
           scenario: deal.scenario,
-          ownerEmail: session.email,
+          ownerEmail: actor.email,
           organizationId: deal.organizationId,
           updatedAt: deal.updatedAt,
         }}
+        parties={parties}
+        createPartyAction={savePartyAction}
+        initialTab={tab}
+        partyMessage={partyMessage}
       />
 
       <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -97,9 +122,9 @@ export default async function DealWorkspacePage({
           </p>
         </div>
 
-        {errorMessage ? (
+        {overviewError ? (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {errorMessage}
+            {overviewError}
           </div>
         ) : null}
 
@@ -166,9 +191,9 @@ export default async function DealWorkspacePage({
           </p>
         </div>
 
-        {errorMessage ? (
+        {noteError ? (
           <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {errorMessage}
+            {noteError}
           </div>
         ) : null}
 

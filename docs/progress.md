@@ -86,3 +86,20 @@
 - Session cookies now align more explicitly with a persisted user record and membership-backed organization context.
 - Settings persist broker name, company name, and email, and refresh the session cookie after email updates.
 - Deal overview updates are limited to the main core fields, while other workspace sections remain intentionally unchanged.
+
+## Batch 5
+
+### What Batch 5 built
+- Tightened deal access checks around the current resolved identity and organization membership.
+- Added lightweight validation for profile updates, deal overview updates, note creation, and party creation.
+- Added a bounded persisted `Parties` workspace section with create and read support for borrower and guarantor records.
+
+### Files created
+- `lib/parties.ts`
+- `lib/validation.ts`
+- `supabase/migrations/20260412214000_create_deal_parties.sql`
+
+### Current status
+- Dashboard and deal detail access now depend on the current actor's organization membership.
+- The Parties tab is the first additional persisted workspace section beyond overview and notes.
+- Other workspace sections remain intentionally shell-only for now.
